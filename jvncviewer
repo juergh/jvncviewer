@@ -18,6 +18,7 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301 USA
 
 import argparse
+import logging
 import os
 import signal
 import sys
@@ -53,12 +54,17 @@ VNC_PASSWORD.
     parser.add_argument("password", nargs='?',
                         default=os.getenv("VNC_PASSWORD", ""),
                         help="VNC password.")
+    parser.add_argument("-v", "--verbose", action="store_true",
+                        help="Enable verbose output.")
     args = parser.parse_args()
 
     if not args.host:
         parser.print_help()
         sys.exit(2)
 
+    level = logging.DEBUG if args.verbose else logging.INFO
+    logging.basicConfig(level=level, format="%(asctime)s: %(message)s",
+                        datefmt="%b %d %H:%M:%S")
     amt = AMTPower(args.host, "admin", args.password)
     vnc = VNCViewer(args.host, args.password, system=amt)
 

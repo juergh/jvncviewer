@@ -4,6 +4,7 @@
 #
 
 import argparse
+import logging
 import os
 import sys
 
@@ -36,11 +37,15 @@ and AMT_PASSWORD.
     parser.add_argument("-u", "--user", default=os.getenv("AMT_USER", "admin"),
                         help="AMT username. If not specified, defaults to "
                         "'admin'.")
+    parser.add_argument("-v", "--verbose", action="store_true",
+                        help="Enable verbose output.")
     args = parser.parse_args()
 
     if not args.host or not args.password:
         parser.print_help()
         sys.exit(2)
+
+    level = logging.DEBUG if args.verbose else logging.INFO
 
     power = AMTPower(args.host, args.user, args.password)
 

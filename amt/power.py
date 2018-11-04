@@ -18,6 +18,7 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+import logging
 import time
 
 import pywsman
@@ -102,7 +103,7 @@ def _set_power_state(client, state):
                                            "RequestPowerStateChange", data=doc,
                                            options=options)
     if errno:
-        print("failed to set power state (%s, %s)" % (errno, errstr))
+        logging.error("Failed to set power state (%s, %s)", errno, errstr)
 
 
 class AMTPower():

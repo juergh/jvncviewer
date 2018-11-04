@@ -17,6 +17,8 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301 USA
 
+import logging
+
 import gi
 gi.require_version('Gtk', '3.0')
 gi.require_version('GtkVnc', '2.0')
@@ -45,7 +47,7 @@ class VNCViewer():
 
         # Status icons
         self.connection_status = StatusIcon()
-        self.connection_status.set_status("blue")
+        self.connection_status.set_status("red")
 
         # Menubar
         menubar = self._menubar(system)
@@ -135,20 +137,20 @@ class VNCViewer():
     # VNC/GTK signal handlers
 
     def _auth_credential(self, _src, _credList):   # pylint: disable=no-self-use
-        print("--- Server requires authentication")
+        logging.error("Server requires authentication")
         Gtk.main_quit()
 
     def _auth_failure(self, _src, msg):   # pylint: disable=no-self-use
-        print("--- Authentication failure (%s)" % msg.strip())
+        logging.error("Authentication failure: %s", msg.strip())
         Gtk.main_quit()
 
     def _connected(self, _src):
-        print("--- Connected to server")
+        logging.debug("Connected to server")
         self.connected = True
         self.connection_status.set_status("green")
 
     def _disconnected(self, _src):
-        print("--- Disconnected from server")
+        logging.debug("Disconnected from server")
         self.connected = False
         self.connection_status.set_status("red")
 
@@ -157,13 +159,13 @@ class VNCViewer():
             GLib.timeout_add(500, self.connect)
 
     def _error(self, _src, msg):   # pylint: disable=no-self-use
-        print("--- Error (%s)" % msg)
+        logging.error("Error: %s", msg)
 
     def _initialized(self, _src):   # pylint: disable=no-self-use
-        print("--- Connection initialized")
+        logging.debug("Connection initialized")
 
     def _size_allocate(self, _src, _rect):
-        print("--- Size allocation")
+        logging.debug("Size allocation")
         # HACK: Shrink the window so that is resizes automatically to the
         # size that the VNC display requests.
         self.window.resize(10, 10)
@@ -172,7 +174,7 @@ class VNCViewer():
     # 'Send Key' menu signal handlers
 
     def _send_cad(self, _src):
-        print("--- Send Control-Alt-Delete")
+        logging.debug("Send Control-Alt-Delete")
         self.vncdisplay.send_keys([Gdk.KEY_Control_L, Gdk.KEY_Alt_L,
                                    Gdk.KEY_Delete])
 
@@ -180,30 +182,30 @@ class VNCViewer():
     # 'System' menu signal handlers
 
     def _system_pon(self, _src):
-        print("--- Powering on system")
+        logging.debug("Powering on system")
         self.system.set_power_state("on")
 
     def _system_poff(self, _src):
-        print("--- Powering off system")
+        logging.debug("Powering off system")
         self.disconnect()
         self.system.set_power_state("off")
         self.connect()
 
     def _system_pcycle(self, _src):
-        print("--- Power cycling system")
+        logging.debug("Power cycling system")
         self.disconnect()
         self.system.set_power_state("cycle")
         self.connect()
 
     def _system_reset(self, _src):
-        print("--- Resetting system")
+        logging.debug("Resetting system")
         self.system.set_power_state("reset")
 
     # -------------------------------------------------------------------------
     # Public methods
 
     def connect(self):
-        print("--- Connecting to %s:%s" % (self.host, self.port))
+        logging.debug("Connecting to %s:%s", self.host, self.port)
         self.manual_disconnect = False
 
         # Remove the previous VNC display from the window layout (in case of a
@@ -234,7 +236,7 @@ class VNCViewer():
         self.vncdisplay.open_host(self.host, self.port)
 
     def disconnect(self):
-        print("--- Disconnecting from %s:%s" % (self.host, self.port))
+        logging.debug("Disconnecting from %s:%s", self.host, self.port)
         self.manual_disconnect = True
 
         self.vncdisplay.close()
@@ -245,5 +247,5 @@ class VNCViewer():
                 Gtk.main_iteration()
 
     def quit(self, _src=None):   # pylint: disable=no-self-use
-        print("--- Quitting")
+        logging.debug("Quitting")
         Gtk.main_quit()
