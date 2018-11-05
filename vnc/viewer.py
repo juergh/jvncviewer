@@ -28,7 +28,7 @@ from gi.repository import Gdk
 from gi.repository import GLib
 from gi.repository import GtkVnc
 
-from vnc.statusicon import StatusIcon
+from vnc.statusicon import StatusIcon, STATUS_OK, STATUS_ERROR
 
 
 class VNCViewer():
@@ -47,7 +47,7 @@ class VNCViewer():
 
         # Status icons
         self.connection_status = StatusIcon()
-        self.connection_status.set_status("red")
+        self.connection_status.set_status(STATUS_ERROR)
 
         # Menubar
         menubar = self._menubar(system)
@@ -147,12 +147,12 @@ class VNCViewer():
     def _connected(self, _src):
         logging.debug("Connected to server")
         self.connected = True
-        self.connection_status.set_status("green")
+        self.connection_status.set_status(STATUS_OK)
 
     def _disconnected(self, _src):
         logging.debug("Disconnected from server")
         self.connected = False
-        self.connection_status.set_status("red")
+        self.connection_status.set_status(STATUS_ERROR)
 
         if not self.manual_disconnect:
             # Automatically reconnect
