@@ -42,7 +42,7 @@ class VNCViewer():
         self.password = password
         self.system = system
 
-        self.manual_disconnect = False
+        self.reconnect = True
         self.connected = False
 
         # Status icons
@@ -103,6 +103,12 @@ class VNCViewer():
         #
         # 'System' menu
         #
+        system_reconnect = Gtk.MenuItem("Reconnect")
+        system_reconnect.connect("activate", self._system_reconnect)
+
+        menu_system = Gtk.Menu()
+        menu_system.append(system_reconnect)
+
         if system:
             system_pon = Gtk.MenuItem("Power On")
             system_pon.connect("activate", self._system_pon)
@@ -113,14 +119,13 @@ class VNCViewer():
             system_reset = Gtk.MenuItem("Reset")
             system_reset.connect("activate", self._system_reset)
 
-            menu_system = Gtk.Menu()
             menu_system.append(system_pon)
             menu_system.append(system_poff)
             menu_system.append(system_pcycle)
             menu_system.append(system_reset)
 
-            menuitem_system = Gtk.MenuItem("System")
-            menuitem_system.set_submenu(menu_system)
+        menuitem_system = Gtk.MenuItem("System")
+        menuitem_system.set_submenu(menu_system)
 
         #
         # Menubar
@@ -128,8 +133,7 @@ class VNCViewer():
         menubar = Gtk.MenuBar()
         menubar.append(menuitem_file)
         menubar.append(menuitem_sendkey)
-        if system:
-            menubar.append(menuitem_system)
+        menubar.append(menuitem_system)
 
         return menubar
 
@@ -154,7 +158,7 @@ class VNCViewer():
         self.connected = False
         self.connection_status.set_status(STATUS_ERROR)
 
-        if not self.manual_disconnect:
+        if self.reconnect:
             # Automatically reconnect
             GLib.timeout_add(500, self.connect)
 
@@ -181,19 +185,23 @@ class VNCViewer():
     # -------------------------------------------------------------------------
     # 'System' menu signal handlers
 
+    def _system_reconnect(self, _src):
+        logging.debug("Reconnecting to %s:%s", self.host, self.port)
+        self.disconnect(reconnect=True)
+
     def _system_pon(self, _src):
         logging.debug("Powering on system")
         self.system.set_power_state("on")
 
     def _system_poff(self, _src):
         logging.debug("Powering off system")
-        self.disconnect()
+        self.disconnect(reconnect=False)
         self.system.set_power_state("off")
         self.connect()
 
     def _system_pcycle(self, _src):
         logging.debug("Power cycling system")
-        self.disconnect()
+        self.disconnect(reconnect=False)
         self.system.set_power_state("cycle")
         self.connect()
 
@@ -206,7 +214,7 @@ class VNCViewer():
 
     def connect(self):
         logging.debug("Connecting to %s:%s", self.host, self.port)
-        self.manual_disconnect = False
+        self.reconnect = True
 
         # Remove the previous VNC display from the window layout (in case of a
         # reconnect)
@@ -235,10 +243,9 @@ class VNCViewer():
 
         self.vncdisplay.open_host(self.host, self.port)
 
-    def disconnect(self):
+    def disconnect(self, reconnect=True):
         logging.debug("Disconnecting from %s:%s", self.host, self.port)
-        self.manual_disconnect = True
-
+        self.reconnect = reconnect
         self.vncdisplay.close()
 
         # Wait for the connection to close
