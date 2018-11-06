@@ -18,6 +18,7 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301 USA
 
 import logging
+import time
 
 import gi
 gi.require_version('Gtk', '3.0')
@@ -28,6 +29,7 @@ from gi.repository import Gdk
 from gi.repository import GLib
 from gi.repository import GtkVnc
 
+from vnc import task
 from vnc.statusicon import StatusIcon, STATUS_OK, STATUS_ERROR
 
 
@@ -189,25 +191,36 @@ class VNCViewer():
         logging.debug("Reconnecting to %s:%s", self.host, self.port)
         self.disconnect(reconnect=True)
 
+    def __system_set_power_state(self, state):
+        # Per the Intel AMT spec, some power commands are rejected if there's
+        # an active connection, so break it first and re-establish it again
+        # afterwards. It's OK to sleep here since this method runs in the
+        # background and won't block the UI.
+        if state in ("off", "cycle"):
+            self.disconnect(reconnect=False)
+            time.sleep(0.5)
+            while self.connected:
+                pass
+        self.system.set_power_state(state)
+        if state in ("off", "cycle"):
+            time.sleep(0.5)
+            self.connect()
+
     def _system_pon(self, _src):
         logging.debug("Powering on system")
-        self.system.set_power_state("on")
+        task.run(self.__system_set_power_state, "on")
 
     def _system_poff(self, _src):
         logging.debug("Powering off system")
-        self.disconnect(reconnect=False)
-        self.system.set_power_state("off")
-        self.connect()
+        task.run(self.__system_set_power_state, "off")
 
     def _system_pcycle(self, _src):
         logging.debug("Power cycling system")
-        self.disconnect(reconnect=False)
-        self.system.set_power_state("cycle")
-        self.connect()
+        task.run(self.__system_set_power_state, "cycle")
 
     def _system_reset(self, _src):
         logging.debug("Resetting system")
-        self.system.set_power_state("reset")
+        task.run(self.__system_set_power_state, "reset")
 
     # -------------------------------------------------------------------------
     # Public methods
@@ -247,11 +260,6 @@ class VNCViewer():
         logging.debug("Disconnecting from %s:%s", self.host, self.port)
         self.reconnect = reconnect
         self.vncdisplay.close()
-
-        # Wait for the connection to close
-        while self.connected:
-            while Gtk.events_pending():
-                Gtk.main_iteration()
 
     def quit(self, _src=None):   # pylint: disable=no-self-use
         logging.debug("Quitting")
