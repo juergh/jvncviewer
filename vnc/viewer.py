@@ -18,7 +18,6 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301 USA
 
 import logging
-import time
 
 import gi
 gi.require_version('Gtk', '3.0')
@@ -31,6 +30,8 @@ from gi.repository import GtkVnc
 
 from vnc import task
 from vnc.statusicon import StatusIcon, STATUS_OK, STATUS_ERROR
+
+GLib.threads_init()
 
 
 class VNCViewer():
@@ -197,14 +198,12 @@ class VNCViewer():
         # afterwards. It's OK to sleep here since this method runs in the
         # background and won't block the UI.
         if state in ("off", "cycle"):
-            self.disconnect(reconnect=False)
-            time.sleep(0.5)
+            GLib.idle_add(self.disconnect, False)
             while self.connected:
                 pass
         self.system.set_power_state(state)
         if state in ("off", "cycle"):
-            time.sleep(0.5)
-            self.connect()
+            GLib.idle_add(self.connect)
 
     def _system_pon(self, _src):
         logging.debug("Powering on system")
