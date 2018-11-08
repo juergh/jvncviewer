@@ -8,7 +8,7 @@ import logging
 import os
 import sys
 
-from amt.power import AMTPower
+from amt.power import AMTPower, power_string_from_state, power_state_from_string
 
 # -----------------------------------------------------------------------------
 # Main entry point
@@ -46,14 +46,16 @@ and AMT_PASSWORD.
         sys.exit(2)
 
     level = logging.DEBUG if args.verbose else logging.INFO
+    logging.basicConfig(level=level, format="%(asctime)s: %(message)s",
+                        datefmt="%b %d %H:%M:%S")
 
     power = AMTPower(args.host, args.user, args.password)
 
     if args.action == "power-state":
-        print(power.get_power_state())
+        print(power_string_from_state(power.get_power_state()))
 
     else:
         state = args.action
         if state.startswith("power-"):
             state = state[6:]
-        print(power.set_power_state(state, wait=False))
+        power.set_power_state(power_state_from_string(state))

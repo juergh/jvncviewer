@@ -26,20 +26,57 @@ import pywsman
 from amt import utils, wsman
 
 
-AMT_POWER_MAP = {
-    "on": 2,
-    "cycle": 5,
-    "off": 8,
-    "reset": 10,
-    "nmi": 11,
+# AMT power states
+POWER_STATE_ON = 2
+POWER_STATE_CYCLE = 5
+POWER_STATE_OFF = 8
+POWER_STATE_RESET = 10
+POWER_STATE_NMI = 11
+POWER_STATE_INVALID = 99
+
+POWER_STATES = (POWER_STATE_ON, POWER_STATE_CYCLE, POWER_STATE_OFF,
+                POWER_STATE_RESET, POWER_STATE_NMI)
+
+_power_state_map = {
+    POWER_STATE_ON: "on",
+    POWER_STATE_CYCLE: "cycle",
+    POWER_STATE_OFF: "off",
+    POWER_STATE_RESET: "reset",
+    POWER_STATE_NMI: "nmi",
 }
 
-cim_schema_url = "http://schemas.dmtf.org/wbem/wscim/1/cim-schema/2/"
-CIM_AssociatedPowerManagementService = (cim_schema_url +
-                                        "CIM_AssociatedPowerManagementService")
-CIM_PowerManagementService = (cim_schema_url +
-                              "CIM_PowerManagementService")
-CIM_ComputerSystem = cim_schema_url + "CIM_ComputerSystem"
+_CIM_Schema = "http://schemas.dmtf.org/wbem/wscim/1/cim-schema/2/"
+_CIM_AssociatedPowerManagementService = _CIM_Schema + "CIM_AssociatedPowerManagementService"
+_CIM_PowerManagementService = _CIM_Schema + "CIM_PowerManagementService"
+_CIM_ComputerSystem = _CIM_Schema + "CIM_ComputerSystem"
+
+
+def power_state_from_string(state):
+    """
+    Translate a power state string
+    """
+    for key, val in _power_state_map.items():
+        if state == val:
+            return key
+    return POWER_STATE_INVALID
+
+
+def power_string_from_state(state):
+    """
+    Translate a power state
+    """
+    return _power_state_map.get(state, "invalid")
+
+
+def is_int(val):
+    """
+    Check if a value is an int
+    """
+    try:
+        int(val)
+    except ValueError:
+        return False
+    return True
 
 
 def _request_power_state_change_input(state):
@@ -50,7 +87,7 @@ def _request_power_state_change_input(state):
     address = "http://schemas.xmlsoap.org/ws/2004/08/addressing"
     anonymous = address + "/role/anonymous"
     wsman = "http://schemas.dmtf.org/wbem/wsman/1/wsman.xsd"
-    namespace = CIM_PowerManagementService
+    namespace = _CIM_PowerManagementService
 
     doc = pywsman.XmlDoc(method_input)
     root = doc.root()
@@ -61,7 +98,7 @@ def _request_power_state_change_input(state):
     child.add(address, "Address", anonymous)
 
     grand_child = child.add(address, "ReferenceParameters", None)
-    grand_child.add(wsman, "ResourceURI", CIM_ComputerSystem)
+    grand_child.add(wsman, "ResourceURI", _CIM_ComputerSystem)
 
     g_grand_child = grand_child.add(wsman, "SelectorSet", None)
 
@@ -75,35 +112,42 @@ def _get_power_state(client):
     """
     Get the power state from the wsman client
     """
+    logging.debug("Getting power state")
+
     client.wake_up()
 
-    namespace = CIM_AssociatedPowerManagementService
+    namespace = _CIM_AssociatedPowerManagementService
     errno, errstr, doc = client.get(namespace)
     if errno:
-        return errstr
+        logging.error("Failed to get power state: %s (%s)", errstr, errno)
+        return errno
 
-    power_state = int(utils.xml_find(doc, namespace, "PowerState").text)
-    for state in AMT_POWER_MAP:
-        if power_state == AMT_POWER_MAP[state]:
-            return state
-    return "unknown state (%s)" % power_state
+    state = utils.xml_find(doc, namespace, "PowerState").text
+    if is_int(state) and int(state) in POWER_STATES:
+        return int(state)
+
+    logging.warning("Invalid power state: %s", state)
+    return POWER_STATE_INVALID
 
 
 def _set_power_state(client, state):
     """
     Set the power state of the wsman client
     """
+    logging.debug("Setting power state to: %s", state)
+
     client.wake_up()
 
     options = pywsman.ClientOptions()
     options.add_selector("Name", "Intel(r) AMT Power Management Service")
 
-    doc = _request_power_state_change_input(AMT_POWER_MAP[state])
-    errno, errstr, _retdoc = client.invoke(CIM_PowerManagementService,
+    doc = _request_power_state_change_input(state)
+    errno, errstr, _retdoc = client.invoke(_CIM_PowerManagementService,
                                            "RequestPowerStateChange", data=doc,
                                            options=options)
     if errno:
-        logging.error("Failed to set power state (%s, %s)", errno, errstr)
+        logging.error("Failed to set power state: %s (%s)", errstr, errno)
+    return errno
 
 
 class AMTPower():
@@ -129,21 +173,24 @@ class AMTPower():
         """
         return _get_power_state(self.client)
 
-    def set_power_state(self, state, wait=False, timeout=30):
+    def set_power_state(self, state, wait=False, timeout=10):
         """
         Set the power state of the host
         """
-        if state not in AMT_POWER_MAP:
-            return "invalid state (%s)" % state
+        if state not in POWER_STATES:
+            logging.error("Invalid power state: %s", state)
+            return -1
 
-        _set_power_state(self.client, state)
-        if not wait:
-            return ""
+        retval = _set_power_state(self.client, state)
+        if retval or not wait:
+            return retval
 
         now = time.time()
         while time.time() < (now + timeout):
             time.sleep(1)
             current_state = _get_power_state(self.client)
             if current_state == state:
-                return state
-        return "timeout (%s)" % current_state
+                return 0
+
+        logging.debug("Timed out waiting for requested power state")
+        return -1

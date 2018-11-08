@@ -83,7 +83,7 @@ class WsManClient():
         if retval == 0:
             return 0, "[invoke] success", doc
         if retval == 2:
-            return -retval, "[invoke] illegal request", doc
+            return -2, "[invoke] illegal request", doc
         return -retval, "[invoke] error (%s)" % retval, doc
 
     def wake_up(self):
