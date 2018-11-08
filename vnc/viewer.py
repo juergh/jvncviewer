@@ -29,7 +29,7 @@ from gi.repository import GLib
 from gi.repository import GtkVnc
 
 from vnc import task
-from vnc.statusicon import StatusIcon, STATUS_OK, STATUS_ERROR
+from vnc.statusicon import StatusIcon, STATUS_OK, STATUS_ERROR, STATUS_UNKNOWN
 
 GLib.threads_init()
 
@@ -51,6 +51,8 @@ class VNCViewer():
         # Status icons
         self.connection_status = StatusIcon()
         self.connection_status.set_status(STATUS_ERROR)
+        self.power_status = StatusIcon()
+        self.power_status.set_status(STATUS_UNKNOWN)
 
         # Menubar
         menubar = self._menubar(system)
@@ -65,6 +67,8 @@ class VNCViewer():
         statusbar = Gtk.HBox()
         statusbar.pack_start(Gtk.Label("Connection:"), False, False, 10)
         statusbar.pack_start(self.connection_status, False, False, 10)
+        statusbar.pack_start(Gtk.Label("Power:"), False, False, 10)
+        statusbar.pack_start(self.power_status, False, False, 10)
 
         # Layout
         layout = Gtk.VBox()
