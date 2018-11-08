@@ -144,6 +144,12 @@ class VNCViewer():
 
         return menubar
 
+    def _update_statusbar(self):
+        if self.connected:
+            self.connection_status.set_status(STATUS_OK)
+        else:
+            self.connection_status.set_status(STATUS_ERROR)
+
     # -------------------------------------------------------------------------
     # VNC/GTK signal handlers
 
@@ -158,12 +164,12 @@ class VNCViewer():
     def _connected(self, _src):
         logging.debug("Connected to server")
         self.connected = True
-        self.connection_status.set_status(STATUS_OK)
+        self._update_statusbar()
 
     def _disconnected(self, _src):
         logging.debug("Disconnected from server")
         self.connected = False
-        self.connection_status.set_status(STATUS_ERROR)
+        self._update_statusbar()
 
         if self.reconnect:
             # Automatically reconnect
