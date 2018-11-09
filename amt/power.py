@@ -165,6 +165,13 @@ class AMTPower():
       9: Power Cycle (Off - Hard)
     """
     def __init__(self, host, username, password):
+        self.POWER_STATE_ON = POWER_STATE_ON
+        self.POWER_STATE_CYCLE = POWER_STATE_CYCLE
+        self.POWER_STATE_OFF = POWER_STATE_OFF
+        self.POWER_STATE_RESET = POWER_STATE_RESET
+        self.POWER_STATE_NMI = POWER_STATE_NMI
+        self.POWER_STATE_INVALID = POWER_STATE_INVALID
+
         self.client = wsman.WsManClient(host, username, password)
 
     def get_power_state(self):
