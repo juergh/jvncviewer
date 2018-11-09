@@ -47,6 +47,7 @@ class VNCViewer():
 
         self.reconnect = True
         self.connected = False
+        self.power = None
 
         # Status icons
         self.connection_status = StatusIcon()
@@ -81,6 +82,10 @@ class VNCViewer():
         self.window.add(layout)
         self.window.connect("destroy", self.quit)
         self.window.show_all()
+
+        # Get the initial power state
+        if system:
+            self._system_get_power_state()
 
     def _menubar(self, system):
         #
@@ -150,6 +155,15 @@ class VNCViewer():
         else:
             self.connection_status.set_status(STATUS_ERROR)
 
+        if not self.power:
+            self.power_status.set_status(STATUS_UNKNOWN)
+        elif self.power == self.system.POWER_STATE_OFF:
+            self.power_status.set_status(STATUS_ERROR)
+        elif self.power == self.system.POWER_STATE_ON:
+            self.power_status.set_status(STATUS_OK)
+        else:
+            self.power_status.set_status(STATUS_UNKNOWN)
+
     # -------------------------------------------------------------------------
     # VNC/GTK signal handlers
 
@@ -202,7 +216,18 @@ class VNCViewer():
         logging.debug("Reconnecting to %s:%s", self.host, self.port)
         self.disconnect(reconnect=True)
 
+    def __system_get_power_state(self):
+        logging.debug("Getting system power state")
+        self.power = self.system.get_power_state()
+        logging.debug("System power state is: %s", self.power)
+        GLib.idle_add(self._update_statusbar)
+
+    def _system_get_power_state(self):
+        task.run(self.__system_get_power_state)
+
     def __system_set_power_state(self, state):
+        logging.debug("Setting system power state to: %s", state)
+
         # Per the Intel AMT spec, some power commands are rejected if there's
         # an active connection, so break it first and re-establish it again
         # afterwards. It's OK to sleep here since this method runs in the
@@ -211,25 +236,27 @@ class VNCViewer():
             GLib.idle_add(self.disconnect, False)
             while self.connected:
                 pass
+
+        # Set the requested power state
         self.system.set_power_state(state)
+
         if state in ("off", "cycle"):
             GLib.idle_add(self.connect)
 
+        # Get the current power state and update the statusbar
+        self.__system_get_power_state()
+
     def _system_pon(self, _src):
-        logging.debug("Powering on system")
-        task.run(self.__system_set_power_state, "on")
+        task.run(self.__system_set_power_state, self.system.POWER_STATE_ON)
 
     def _system_poff(self, _src):
-        logging.debug("Powering off system")
-        task.run(self.__system_set_power_state, "off")
+        task.run(self.__system_set_power_state, self.system.POWER_STATE_OFF)
 
     def _system_pcycle(self, _src):
-        logging.debug("Power cycling system")
-        task.run(self.__system_set_power_state, "cycle")
+        task.run(self.__system_set_power_state, self.system.POWER_STATE_CYCLE)
 
     def _system_reset(self, _src):
-        logging.debug("Resetting system")
-        task.run(self.__system_set_power_state, "reset")
+        task.run(self.__system_set_power_state, self.system.POWER_STATE_RESET)
 
     # -------------------------------------------------------------------------
     # Public methods
