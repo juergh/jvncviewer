@@ -171,6 +171,7 @@ class AMTPower():
         self.POWER_STATE_RESET = POWER_STATE_RESET
         self.POWER_STATE_NMI = POWER_STATE_NMI
         self.POWER_STATE_INVALID = POWER_STATE_INVALID
+        self.POWER_STATES = POWER_STATES
 
         self.client = wsman.WsManClient(host, username, password)
 

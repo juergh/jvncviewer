@@ -218,7 +218,12 @@ class VNCViewer():
 
     def __system_get_power_state(self):
         logging.debug("Getting system power state")
+
         self.power = self.system.get_power_state()
+        # Retry once
+        if self.power not in self.system.POWER_STATES:
+            self.power = self.system.get_power_state()
+
         logging.debug("System power state is: %s", self.power)
         GLib.idle_add(self._update_statusbar)
 
