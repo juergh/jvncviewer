@@ -224,7 +224,7 @@ class VNCViewer():
         # an active connection, so break it first and re-establish it again
         # afterwards. It's OK to sleep here since this method runs in the
         # background and won't block the UI.
-        if state in ("off", "cycle"):
+        if state in (self.bmc.POWER_STATE_OFF, self.bmc.POWER_STATE_CYCLE):
             GLib.idle_add(self.disconnect, False)
             while self.connected:
                 pass
@@ -232,11 +232,12 @@ class VNCViewer():
         # Set the requested power state
         self.bmc.set_power_state(state)
 
-        if state in ("off", "cycle"):
+        if state in (self.bmc.POWER_STATE_OFF, self.bmc.POWER_STATE_CYCLE):
+            # Reconnect (which will automatically query the power state)
             GLib.idle_add(self.connect)
-
-        # Get the current power state and update the statusbar
-        self.__system_get_power_state()
+        else:
+            # Get the current power state and update the statusbar
+            self.__system_get_power_state()
 
     # -------------------------------------------------------------------------
     # 'System' menu signal handlers
