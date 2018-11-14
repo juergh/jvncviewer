@@ -35,7 +35,7 @@ GLib.threads_init()
 
 
 class VNCViewer():
-    def __init__(self, host, password="", system=None):
+    def __init__(self, host, password, bmc=None):
         port = "5900"
         if ":" in host:
             host, port = host.split(':')
@@ -43,7 +43,7 @@ class VNCViewer():
         self.host = host
         self.port = port
         self.password = password
-        self.system = system
+        self.bmc = bmc
 
         self.reconnect = True
         self.connected = False
@@ -56,7 +56,7 @@ class VNCViewer():
         self.power_status.set_status(STATUS_UNKNOWN)
 
         # Menubar
-        menubar = self._menubar(system)
+        menubar = self._menubar(bmc)
 
         # VNC display
         self.vncdisplay = GtkVnc.Display()
@@ -83,11 +83,7 @@ class VNCViewer():
         self.window.connect("destroy", self.quit)
         self.window.show_all()
 
-        # Get the initial power state
-        if system:
-            self._system_get_power_state()
-
-    def _menubar(self, system):
+    def _menubar(self, bmc):
         #
         # 'File' menu
         #
@@ -121,7 +117,7 @@ class VNCViewer():
         menu_system = Gtk.Menu()
         menu_system.append(system_reconnect)
 
-        if system:
+        if bmc:
             system_pon = Gtk.MenuItem("Power On")
             system_pon.connect("activate", self._system_pon)
             system_poff = Gtk.MenuItem("Power Off")
@@ -157,9 +153,9 @@ class VNCViewer():
 
         if not self.power:
             self.power_status.set_status(STATUS_UNKNOWN)
-        elif self.power == self.system.POWER_STATE_OFF:
+        elif self.power == self.bmc.POWER_STATE_OFF:
             self.power_status.set_status(STATUS_ERROR)
-        elif self.power == self.system.POWER_STATE_ON:
+        elif self.power == self.bmc.POWER_STATE_ON:
             self.power_status.set_status(STATUS_OK)
         else:
             self.power_status.set_status(STATUS_UNKNOWN)
@@ -179,6 +175,7 @@ class VNCViewer():
         logging.debug("Connected to server")
         self.connected = True
         self._update_statusbar()
+        self._system_get_power_state()
 
     def _disconnected(self, _src):
         logging.debug("Disconnected from server")
@@ -209,26 +206,16 @@ class VNCViewer():
         self.vncdisplay.send_keys([Gdk.KEY_Control_L, Gdk.KEY_Alt_L,
                                    Gdk.KEY_Delete])
 
-    # -------------------------------------------------------------------------
-    # 'System' menu signal handlers
 
-    def _system_reconnect(self, _src):
-        logging.debug("Reconnecting to %s:%s", self.host, self.port)
-        self.disconnect(reconnect=True)
+    # -------------------------------------------------------------------------
+    # System background methods
+    # These are long running and need to be run in separate threads
 
     def __system_get_power_state(self):
         logging.debug("Getting system power state")
-
-        self.power = self.system.get_power_state()
-        # Retry once
-        if self.power not in self.system.POWER_STATES:
-            self.power = self.system.get_power_state()
-
+        self.power = self.bmc.get_power_state()
         logging.debug("System power state is: %s", self.power)
         GLib.idle_add(self._update_statusbar)
-
-    def _system_get_power_state(self):
-        task.run(self.__system_get_power_state)
 
     def __system_set_power_state(self, state):
         logging.debug("Setting system power state to: %s", state)
@@ -243,7 +230,7 @@ class VNCViewer():
                 pass
 
         # Set the requested power state
-        self.system.set_power_state(state)
+        self.bmc.set_power_state(state)
 
         if state in ("off", "cycle"):
             GLib.idle_add(self.connect)
@@ -251,17 +238,27 @@ class VNCViewer():
         # Get the current power state and update the statusbar
         self.__system_get_power_state()
 
+    # -------------------------------------------------------------------------
+    # 'System' menu signal handlers
+
+    def _system_get_power_state(self):
+        task.run(self.__system_get_power_state)
+
+    def _system_reconnect(self, _src):
+        logging.debug("Reconnecting to %s:%s", self.host, self.port)
+        self.disconnect(reconnect=True)
+
     def _system_pon(self, _src):
-        task.run(self.__system_set_power_state, self.system.POWER_STATE_ON)
+        task.run(self.__system_set_power_state, self.bmc.POWER_STATE_ON)
 
     def _system_poff(self, _src):
-        task.run(self.__system_set_power_state, self.system.POWER_STATE_OFF)
+        task.run(self.__system_set_power_state, self.bmc.POWER_STATE_OFF)
 
     def _system_pcycle(self, _src):
-        task.run(self.__system_set_power_state, self.system.POWER_STATE_CYCLE)
+        task.run(self.__system_set_power_state, self.bmc.POWER_STATE_CYCLE)
 
     def _system_reset(self, _src):
-        task.run(self.__system_set_power_state, self.system.POWER_STATE_RESET)
+        task.run(self.__system_set_power_state, self.bmc.POWER_STATE_RESET)
 
     # -------------------------------------------------------------------------
     # Public methods
@@ -279,7 +276,7 @@ class VNCViewer():
         self.vncbox.add(self.vncdisplay)
         self.vncdisplay.show()
 
-        if self.password != "":
+        if self.password:
             self.vncdisplay.set_credential(GtkVnc.DisplayCredential.CLIENTNAME,
                                            "jvncviewer")
             self.vncdisplay.set_credential(GtkVnc.DisplayCredential.PASSWORD,
