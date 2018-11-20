@@ -52,8 +52,9 @@ class VNCViewer():
         # Status icons
         self.connection_status = StatusIcon()
         self.connection_status.set_status(STATUS_ERROR)
-        self.power_status = StatusIcon()
-        self.power_status.set_status(STATUS_UNKNOWN)
+        if bmc:
+            self.power_status = StatusIcon()
+            self.power_status.set_status(STATUS_UNKNOWN)
 
         # Menubar
         menubar = self._menubar(bmc)
@@ -151,14 +152,15 @@ class VNCViewer():
         else:
             self.connection_status.set_status(STATUS_ERROR)
 
-        if not self.power:
-            self.power_status.set_status(STATUS_UNKNOWN)
-        elif self.power == self.bmc.POWER_STATE_OFF:
-            self.power_status.set_status(STATUS_ERROR)
-        elif self.power == self.bmc.POWER_STATE_ON:
-            self.power_status.set_status(STATUS_OK)
-        else:
-            self.power_status.set_status(STATUS_UNKNOWN)
+        if self.bmc:
+            if not self.power:
+                self.power_status.set_status(STATUS_UNKNOWN)
+            elif self.power == self.bmc.POWER_STATE_OFF:
+                self.power_status.set_status(STATUS_ERROR)
+            elif self.power == self.bmc.POWER_STATE_ON:
+                self.power_status.set_status(STATUS_OK)
+            else:
+                self.power_status.set_status(STATUS_UNKNOWN)
 
     # -------------------------------------------------------------------------
     # VNC/GTK signal handlers
