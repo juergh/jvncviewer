@@ -208,7 +208,6 @@ class VNCViewer():
         self.vncdisplay.send_keys([Gdk.KEY_Control_L, Gdk.KEY_Alt_L,
                                    Gdk.KEY_Delete])
 
-
     # -------------------------------------------------------------------------
     # System background methods
     # These are long running and need to be run in separate threads
@@ -218,6 +217,9 @@ class VNCViewer():
         self.power = self.bmc.get_power_state()
         logging.debug("System power state is: %s", self.power)
         GLib.idle_add(self._update_statusbar)
+
+        if self.power not in self.bmc.POWER_STATES:
+            GLib.timeout_add(2000, self._system_get_power_state)
 
     def __system_set_power_state(self, state):
         logging.debug("Setting system power state to: %s", state)
@@ -235,11 +237,11 @@ class VNCViewer():
         self.bmc.set_power_state(state)
 
         if state in (self.bmc.POWER_STATE_OFF, self.bmc.POWER_STATE_CYCLE):
-            # Reconnect (which will automatically query the power state)
+            # Reconnect
             GLib.idle_add(self.connect)
-        else:
-            # Get the current power state and update the statusbar
-            self.__system_get_power_state()
+
+        # Get the current power state and update the statusbar
+        GLib.timeout_add(2000, self._system_get_power_state)
 
     # -------------------------------------------------------------------------
     # 'System' menu signal handlers
