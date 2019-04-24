@@ -234,7 +234,10 @@ class VNCViewer():
                 pass
 
         # Set the requested power state
-        self.bmc.set_power_state(state)
+        errno = self.bmc.set_power_state(state)
+        if errno:
+            # Retry once
+            self.bmc.set_power_state(state)
 
         if state in (self.bmc.POWER_STATE_OFF, self.bmc.POWER_STATE_CYCLE):
             # Reconnect
