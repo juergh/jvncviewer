@@ -102,9 +102,12 @@ class VNCViewer():
         #
         sendkey_cad = Gtk.MenuItem("Control-Alt-Delete")
         sendkey_cad.connect("activate", self._send_cad)
+        sendkey_f12 = Gtk.MenuItem("F12")
+        sendkey_f12.connect("activate", self._send_f12)
 
         menu_sendkey = Gtk.Menu()
         menu_sendkey.append(sendkey_cad)
+        menu_sendkey.append(sendkey_f12)
 
         menuitem_sendkey = Gtk.MenuItem("Send Key")
         menuitem_sendkey.set_submenu(menu_sendkey)
@@ -207,6 +210,9 @@ class VNCViewer():
         logging.debug("Send Control-Alt-Delete")
         self.vncdisplay.send_keys([Gdk.KEY_Control_L, Gdk.KEY_Alt_L,
                                    Gdk.KEY_Delete])
+    def _send_f12(self, _src):
+        logging.debug("Send F12")
+        self.vncdisplay.send_keys([Gdk.KEY_F12])
 
     # -------------------------------------------------------------------------
     # System background methods
