@@ -41,31 +41,30 @@ if __name__ == "__main__":
     desc = """
 jvncviewer is a simple GTK VNC viewer.
 
-The hostname and password (if necessary) need to be supplied via the
-commandline or, alternatively, with environment variables VNC_HOST and
-VNC_PASSWORD.
+The hostname and password(s) (if necessary) need to be supplied via the
+commandline or, alternatively, with environment variables VNC_HOST,
+VNC_PASSWORD and AMT_PASSWORD.
 """
     parser = argparse.ArgumentParser(description=desc, formatter_class=
                                      argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("host", metavar="host[:port]", nargs='?',
+    parser.add_argument("host", metavar="host[:port]",
                         default=os.getenv("VNC_HOST", ""),
                         help="VNC host and (optional) port number. If not "
                         "specified, port defaults to '5900'.")
     parser.add_argument("password", nargs='?',
                         default=os.getenv("VNC_PASSWORD", ""),
                         help="VNC password.")
+    parser.add_argument("-a", "--amt-password",
+                        default=os.getenv("AMT_PASSWORD", ""),
+                        help="AMT password.")
     parser.add_argument("-v", "--verbose", action="store_true",
                         help="Enable verbose output.")
     args = parser.parse_args()
 
-    if not args.host:
-        parser.print_help()
-        sys.exit(2)
-
     level = logging.DEBUG if args.verbose else logging.INFO
     logging.basicConfig(level=level, format="%(asctime)s: %(message)s",
                         datefmt="%b %d %H:%M:%S")
-    amt = AMTPower(args.host, "admin", args.password)
+    amt = AMTPower(args.host, "admin", args.amt_password)
     vnc = VNCViewer(args.host, args.password, bmc=amt)
 
     vnc.connect()
