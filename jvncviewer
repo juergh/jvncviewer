@@ -47,7 +47,7 @@ VNC_PASSWORD and AMT_PASSWORD.
 """
     parser = argparse.ArgumentParser(description=desc, formatter_class=
                                      argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("host", metavar="host[:port]",
+    parser.add_argument("host", metavar="host[:port]", nargs='?',
                         default=os.getenv("VNC_HOST", ""),
                         help="VNC host and (optional) port number. If not "
                         "specified, port defaults to '5900'.")
