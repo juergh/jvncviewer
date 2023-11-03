@@ -1,0 +1,27 @@
+#!/bin/bash -eu
+#
+# Enable VNC/KVM
+#
+# Note: VNC_PASSWORD must be exactly *8 characters long* and contain at
+#       least one of each: lower case, upper case, number, special character
+#
+
+amt_host=${1}
+
+common_opts=(
+	-h "${amt_host}"
+	-P 16992
+	-u admin
+	-p "${AMT_PASSWORD}"
+)
+
+# Enable KVM and configure it
+op=(put http://intel.com/wbem/wscim/1/ips-schema/1/IPS_KVMRedirectionSettingData)
+wsman "${op[@]}" "${common_opts[@]}" -k RFBPassword="${VNC_PASSWORD}"
+wsman "${op[@]}" "${common_opts[@]}" -k Is5900PortEnabled=true
+wsman "${op[@]}" "${common_opts[@]}" -k OptInPolicy=false
+wsman "${op[@]}" "${common_opts[@]}" -k SessionTimeout=0
+
+# Enable KVM interface
+op=(invoke -a RequestStateChange http://schemas.dmtf.org/wbem/wscim/1/cim-schema/2/CIM_KVMRedirectionSAP)
+wsman "${op[@]}" "${common_opts[@]}" -k RequestedState=2
